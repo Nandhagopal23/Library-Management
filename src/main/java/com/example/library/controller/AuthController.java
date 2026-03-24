@@ -2,6 +2,7 @@ package com.example.library.controller;
 
 import com.example.library.entity.User;
 import com.example.library.entity.UserRole;
+import com.example.library.service.AuthService;
 import com.example.library.service.RegistrationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -14,25 +15,32 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/auth/register")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final RegistrationService registrationService;
+    private final AuthService authService;
 
-    public AuthController(RegistrationService registrationService) {
+    public AuthController(RegistrationService registrationService, AuthService authService) {
         this.registrationService = registrationService;
+        this.authService = authService;
     }
 
-    @PostMapping("/user")
+    @PostMapping("/register/user")
     public RegistrationResponse registerUser(@Valid @RequestBody RegistrationRequest request) {
         User user = registrationService.registerUser(request.name(), request.email(), request.password());
         return RegistrationResponse.from(user);
     }
 
-    @PostMapping("/employee")
+    @PostMapping("/register/employee")
     public RegistrationResponse registerEmployee(@Valid @RequestBody RegistrationRequest request) {
         User user = registrationService.registerEmployee(request.name(), request.email(), request.password());
         return RegistrationResponse.from(user);
+    }
+
+    @PostMapping("/login")
+    public AuthService.LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request.email(), request.password());
     }
 
     public record RegistrationRequest(
@@ -62,5 +70,13 @@ public class AuthController {
                     user.getCreatedAt()
             );
         }
+    }
+
+    public record LoginRequest(
+            @NotBlank
+            @Email String email,
+            @NotBlank String password
+            ) {
+
     }
 }
