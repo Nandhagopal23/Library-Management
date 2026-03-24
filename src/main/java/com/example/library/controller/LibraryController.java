@@ -3,7 +3,6 @@ package com.example.library.controller;
 import com.example.library.entity.Borrow;
 import com.example.library.service.LibraryService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,14 +38,14 @@ public class LibraryController {
     }
 
     @GetMapping("/borrowed")
-    public List<BorrowResponse> getBorrowedBooks(@RequestParam(required = false) String userId) {
+    public List<BorrowResponse> getBorrowedBooks(@RequestParam(required = false) Long userId) {
         return libraryService.getBorrowedBooks(userId).stream()
                 .map(BorrowResponse::from)
                 .toList();
     }
 
     public record BorrowBookRequest(
-            @NotBlank String userId,
+            @NotNull Long userId,
             @NotNull Long bookId
             ) {
 
@@ -54,7 +53,7 @@ public class LibraryController {
 
     public record BorrowResponse(
             Long id,
-            String userId,
+            Long userId,
             Long bookId,
             String bookTitle,
             String bookAuthor,
@@ -66,7 +65,7 @@ public class LibraryController {
         static BorrowResponse from(Borrow borrow) {
             return new BorrowResponse(
                     borrow.getId(),
-                    borrow.getUserId(),
+                    borrow.getUser().getId(),
                     borrow.getBook().getId(),
                     borrow.getBook().getTitle(),
                     borrow.getBook().getAuthor(),

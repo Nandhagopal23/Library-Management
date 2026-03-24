@@ -2,8 +2,10 @@ package com.example.library.service;
 
 import com.example.library.entity.Book;
 import com.example.library.entity.Borrow;
+import com.example.library.entity.User;
 import com.example.library.repository.BookRepository;
 import com.example.library.repository.BorrowRepository;
+import com.example.library.repository.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -23,14 +25,19 @@ public class LibraryService {
 
     private final BookRepository bookRepository;
     private final BorrowRepository borrowRepository;
+    private final UserRepository userRepository;
 
-    public LibraryService(BookRepository bookRepository, BorrowRepository borrowRepository) {
+    public LibraryService(BookRepository bookRepository, BorrowRepository borrowRepository, UserRepository userRepository) {
         this.bookRepository = bookRepository;
         this.borrowRepository = borrowRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
-    public Borrow borrowBook(String userId, Long bookId) {
+    public Borrow borrowBook(Long userId, Long bookId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
         long activeBorrows = borrowRepository.countByUserIdAndReturnDateIsNull(userId);
         if (activeBorrows >= MAX_BORROWS_PER_USER) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Max 3 books per user reached");
@@ -47,7 +54,7 @@ public class LibraryService {
         bookRepository.save(book);
 
         Borrow borrow = new Borrow();
-        borrow.setUserId(userId);
+        borrow.setUser(user);
         borrow.setBook(book);
         borrow.setBorrowDate(LocalDate.now());
         borrow.setLatePenalty(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
@@ -75,8 +82,8 @@ public class LibraryService {
     }
 
     @Transactional(readOnly = true)
-    public List<Borrow> getBorrowedBooks(String userId) {
-        if (userId == null || userId.isBlank()) {
+    public List<Borrow> getBorrowedBooks(Long userId) {
+        if (userId == null) {
             return borrowRepository.findByReturnDateIsNull();
         }
         return borrowRepository.findByUserIdAndReturnDateIsNull(userId);
