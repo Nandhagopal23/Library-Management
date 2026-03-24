@@ -34,11 +34,12 @@ public class LibraryService {
     }
 
     @Transactional
-    public Borrow borrowBook(Long userId, Long bookId) {
-        User user = userRepository.findById(userId)
+    public Borrow borrowBook(String requesterEmail, Long bookId) {
+        String normalizedEmail = normalizeEmail(requesterEmail);
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        long activeBorrows = borrowRepository.countByUserIdAndReturnDateIsNull(userId);
+        long activeBorrows = borrowRepository.countByUserEmailIgnoreCaseAndReturnDateIsNull(normalizedEmail);
         if (activeBorrows >= MAX_BORROWS_PER_USER) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Max 3 books per user reached");
         }
@@ -63,9 +64,14 @@ public class LibraryService {
     }
 
     @Transactional
-    public Borrow returnBook(Long borrowId) {
+    public Borrow returnBook(Long borrowId, String requesterEmail, boolean isEmployee) {
+        String normalizedEmail = normalizeEmail(requesterEmail);
         Borrow borrow = borrowRepository.findByIdAndReturnDateIsNull(borrowId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active borrow record not found"));
+
+        if (!isEmployee && !borrow.getUser().getEmail().equalsIgnoreCase(normalizedEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only return your own borrowed books");
+        }
 
         LocalDate returnDate = LocalDate.now();
         borrow.setReturnDate(returnDate);
@@ -82,10 +88,17 @@ public class LibraryService {
     }
 
     @Transactional(readOnly = true)
-    public List<Borrow> getBorrowedBooks(Long userId) {
-        if (userId == null) {
+    public List<Borrow> getBorrowedBooks(String requesterEmail, boolean isEmployee) {
+        if (isEmployee) {
             return borrowRepository.findByReturnDateIsNull();
         }
-        return borrowRepository.findByUserIdAndReturnDateIsNull(userId);
+        return borrowRepository.findByUserEmailIgnoreCaseAndReturnDateIsNull(normalizeEmail(requesterEmail));
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return email.trim().toLowerCase();
     }
 }
