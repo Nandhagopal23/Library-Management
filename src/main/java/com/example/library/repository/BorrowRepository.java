@@ -25,4 +25,6 @@ public interface BorrowRepository extends JpaRepository<Borrow, Long> {
     List<Borrow> findByUserEmailIgnoreCaseAndReturnDateIsNull(String email);
 
     boolean existsByBookIdAndReturnDateIsNull(Long bookId);
+
+    boolean existsByUserIdAndReturnDateIsNull(Long userId);
 }

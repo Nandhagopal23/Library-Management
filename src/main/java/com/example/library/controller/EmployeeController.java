@@ -1,6 +1,5 @@
 package com.example.library.controller;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -20,9 +19,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.library.entity.Book;
-import com.example.library.entity.Borrow;
+import com.example.library.entity.User;
+import com.example.library.entity.UserRole;
 import com.example.library.service.EmployeeService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -31,6 +33,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 @RestController
 @RequestMapping("/api/employee")
 @PreAuthorize("hasRole('EMPLOYEE')")
+@Tag(name = "Employee Endpoints", description = "Employee-only operations for managing books and users")
 public class EmployeeController {
 
     private final EmployeeService employeeService;
@@ -40,30 +43,35 @@ public class EmployeeController {
     }
 
     @PostMapping("/books")
+    @Operation(summary = "Add a book", description = "Add a new book to the library")
     public BookResponse createBook(@Valid @RequestBody CreateBookRequest request) {
         Book book = employeeService.createBook(request.title(), request.author(), request.availableCopies());
         return BookResponse.from(book);
     }
 
     @PutMapping("/books/{id}")
+    @Operation(summary = "Update book", description = "Update title, author, and available copies")
     public BookResponse updateBook(@PathVariable Long id, @Valid @RequestBody UpdateBookRequest request) {
         Book book = employeeService.updateBook(id, request.title(), request.author(), request.availableCopies());
         return BookResponse.from(book);
     }
 
     @PatchMapping("/books/{id}/stock")
+    @Operation(summary = "Adjust book stock", description = "Set available copies for a book")
     public BookResponse adjustBookStock(@PathVariable Long id, @Valid @RequestBody AdjustStockRequest request) {
         Book book = employeeService.adjustStock(id, request.availableCopies());
         return BookResponse.from(book);
     }
 
     @DeleteMapping("/books/{id}")
+    @Operation(summary = "Delete book", description = "Delete a book when it has no active borrows")
     public DeleteResponse deleteBook(@PathVariable Long id) {
         employeeService.deleteBook(id);
         return new DeleteResponse("Book deleted successfully");
     }
 
     @GetMapping("/books")
+    @Operation(summary = "List books", description = "List and search books with pagination")
     public PagedResponse<BookResponse> getBooks(
             @RequestParam(required = false) String query,
             @PageableDefault(size = 10) Pageable pageable
@@ -72,16 +80,33 @@ public class EmployeeController {
         return PagedResponse.from(page);
     }
 
-    @GetMapping("/borrows/active")
-    public PagedResponse<BorrowResponse> getActiveBorrows(@PageableDefault(size = 10) Pageable pageable) {
-        Page<BorrowResponse> page = employeeService.getActiveBorrows(pageable).map(BorrowResponse::from);
+    @GetMapping("/users")
+    @Operation(summary = "List users", description = "List and search users with pagination")
+    public PagedResponse<UserResponse> getUsers(
+            @RequestParam(required = false) String query,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Page<UserResponse> page = employeeService.getUsers(query, pageable).map(UserResponse::from);
         return PagedResponse.from(page);
     }
 
-    @GetMapping("/borrows/overdue")
-    public PagedResponse<BorrowResponse> getOverdueBorrows(@PageableDefault(size = 10) Pageable pageable) {
-        Page<BorrowResponse> page = employeeService.getOverdueBorrows(pageable).map(BorrowResponse::from);
-        return PagedResponse.from(page);
+    @GetMapping("/users/{id}")
+    @Operation(summary = "Get user by id", description = "Get a single user profile by id")
+    public UserResponse getUserById(@PathVariable Long id) {
+        return UserResponse.from(employeeService.getUserById(id));
+    }
+
+    @PatchMapping("/users/{id}/role")
+    @Operation(summary = "Update user role", description = "Change a user role to USER or EMPLOYEE")
+    public UserResponse updateUserRole(@PathVariable Long id, @Valid @RequestBody UpdateUserRoleRequest request) {
+        return UserResponse.from(employeeService.updateUserRole(id, request.role()));
+    }
+
+    @DeleteMapping("/users/{id}")
+    @Operation(summary = "Delete user", description = "Delete user if there are no active borrows")
+    public DeleteResponse deleteUser(@PathVariable Long id) {
+        employeeService.deleteUser(id);
+        return new DeleteResponse("User deleted successfully");
     }
 
     public record CreateBookRequest(
@@ -113,6 +138,10 @@ public class EmployeeController {
 
     }
 
+    public record UpdateUserRoleRequest(@NotNull UserRole role) {
+
+    }
+
     public record BookResponse(Long id, String title, String author, int availableCopies) {
 
         static BookResponse from(Book book) {
@@ -120,27 +149,21 @@ public class EmployeeController {
         }
     }
 
-    public record BorrowResponse(
+    public record UserResponse(
             Long id,
-            Long userId,
-            Long bookId,
-            String bookTitle,
-            String bookAuthor,
-            LocalDate borrowDate,
-            LocalDate returnDate,
-            BigDecimal latePenalty
+            String name,
+            String email,
+            UserRole role,
+            LocalDate createdDate
             ) {
 
-        static BorrowResponse from(Borrow borrow) {
-            return new BorrowResponse(
-                    borrow.getId(),
-                    borrow.getUser().getId(),
-                    borrow.getBook().getId(),
-                    borrow.getBook().getTitle(),
-                    borrow.getBook().getAuthor(),
-                    borrow.getBorrowDate(),
-                    borrow.getReturnDate(),
-                    borrow.getLatePenalty()
+        static UserResponse from(User user) {
+            return new UserResponse(
+                    user.getId(),
+                    user.getName(),
+                    user.getEmail(),
+                    user.getRole(),
+                    user.getCreatedAt().toLocalDate()
             );
         }
     }
