@@ -1,20 +1,24 @@
 package com.example.library.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.example.library.entity.Book;
 import com.example.library.entity.Borrow;
 import com.example.library.entity.User;
 import com.example.library.repository.BookRepository;
 import com.example.library.repository.BorrowRepository;
 import com.example.library.repository.UserRepository;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class LibraryService {
@@ -93,6 +97,15 @@ public class LibraryService {
             return borrowRepository.findByReturnDateIsNull();
         }
         return borrowRepository.findByUserEmailIgnoreCaseAndReturnDateIsNull(normalizeEmail(requesterEmail));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Book> getAllBooks(String query, Pageable pageable) {
+        if (query == null || query.isBlank()) {
+            return bookRepository.findAll(pageable);
+        }
+        String term = query.trim();
+        return bookRepository.findByTitleContainingIgnoreCaseOrAuthorContainingIgnoreCase(term, term, pageable);
     }
 
     private String normalizeEmail(String email) {

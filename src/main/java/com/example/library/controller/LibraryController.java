@@ -1,23 +1,30 @@
 package com.example.library.controller;
 
-import com.example.library.entity.Borrow;
-import com.example.library.service.LibraryService;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
+import com.example.library.entity.Borrow;
+import com.example.library.service.LibraryService;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 @RestController
 @RequestMapping("/api/library")
@@ -53,6 +60,18 @@ public class LibraryController {
         boolean isEmployee = hasEmployeeRole(authentication);
         Borrow borrow = libraryService.returnBook(borrowId, requesterEmail, isEmployee);
         return BorrowResponse.from(borrow);
+    }
+
+    @GetMapping("/books")
+    public PagedResponse<BookResponse> getBooks(
+            Authentication authentication,
+            @RequestHeader(value = "X-User-Email", required = false) String fallbackEmail,
+            @RequestParam(required = false) String query,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        resolveRequesterEmail(authentication, fallbackEmail);
+        Page<BookResponse> page = libraryService.getAllBooks(query, pageable).map(BookResponse::from);
+        return PagedResponse.from(page);
     }
 
     @GetMapping("/borrowed")
@@ -94,6 +113,36 @@ public class LibraryController {
                     borrow.getBorrowDate(),
                     borrow.getReturnDate(),
                     borrow.getLatePenalty()
+            );
+        }
+    }
+
+    public record BookResponse(Long id, String title, String author, int availableCopies) {
+
+        static BookResponse from(com.example.library.entity.Book book) {
+            return new BookResponse(book.getId(), book.getTitle(), book.getAuthor(), book.getAvailableCopies());
+        }
+    }
+
+    public record PagedResponse<T>(
+            List<T> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean hasNext,
+            boolean hasPrevious
+            ) {
+
+        static <T> PagedResponse<T> from(Page<T> page) {
+            return new PagedResponse<>(
+                    page.getContent(),
+                    page.getNumber(),
+                    page.getSize(),
+                    page.getTotalElements(),
+                    page.getTotalPages(),
+                    page.hasNext(),
+                    page.hasPrevious()
             );
         }
     }
