@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,6 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -56,6 +58,7 @@ public class SecurityConfig {
                             "/v3/api-docs.yaml"
                     ).permitAll();
                     auth.requestMatchers("/api/auth/register/**", "/api/auth/login").permitAll();
+                    auth.requestMatchers("/api/employee/**").hasRole("EMPLOYEE");
                     if (libraryAuthRequired) {
                         auth.requestMatchers("/api/library/**").authenticated();
                     } else {
