@@ -49,6 +49,12 @@ public class SecurityConfig {
                 .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(
+                            "/swagger-ui/**",
+                            "/swagger-ui.html",
+                            "/v3/api-docs/**",
+                            "/v3/api-docs.yaml"
+                    ).permitAll();
                     auth.requestMatchers("/api/auth/register/**", "/api/auth/login").permitAll();
                     if (libraryAuthRequired) {
                         auth.requestMatchers("/api/library/**").authenticated();
