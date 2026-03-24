@@ -7,11 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BorrowRepository extends JpaRepository<Borrow, Long> {
 
-    long countByUserIdAndReturnDateIsNull(String userId);
+    long countByUserIdAndReturnDateIsNull(Long userId);
 
     Optional<Borrow> findByIdAndReturnDateIsNull(Long id);
 
     List<Borrow> findByReturnDateIsNull();
 
-    List<Borrow> findByUserIdAndReturnDateIsNull(String userId);
+    List<Borrow> findByUserIdAndReturnDateIsNull(Long userId);
 }
