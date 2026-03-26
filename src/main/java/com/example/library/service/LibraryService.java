@@ -68,12 +68,12 @@ public class LibraryService {
     }
 
     @Transactional
-    public Borrow returnBook(Long borrowId, String requesterEmail, boolean isEmployee) {
+    public Borrow returnBook(Long borrowId, String requesterEmail) {
         String normalizedEmail = normalizeEmail(requesterEmail);
         Borrow borrow = borrowRepository.findByIdAndReturnDateIsNull(borrowId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active borrow record not found"));
 
-        if (!isEmployee && !borrow.getUser().getEmail().equalsIgnoreCase(normalizedEmail)) {
+        if (!borrow.getUser().getEmail().equalsIgnoreCase(normalizedEmail)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only return your own borrowed books");
         }
 
@@ -92,10 +92,7 @@ public class LibraryService {
     }
 
     @Transactional(readOnly = true)
-    public List<Borrow> getBorrowedBooks(String requesterEmail, boolean isEmployee) {
-        if (isEmployee) {
-            return borrowRepository.findByReturnDateIsNull();
-        }
+    public List<Borrow> getBorrowedBooks(String requesterEmail) {
         return borrowRepository.findByUserEmailIgnoreCaseAndReturnDateIsNull(normalizeEmail(requesterEmail));
     }
 

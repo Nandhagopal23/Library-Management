@@ -1,7 +1,5 @@
 package com.example.library.service;
 
-import java.time.LocalDate;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -10,21 +8,23 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.library.entity.Book;
-import com.example.library.entity.Borrow;
+import com.example.library.entity.User;
+import com.example.library.entity.UserRole;
 import com.example.library.repository.BookRepository;
 import com.example.library.repository.BorrowRepository;
+import com.example.library.repository.UserRepository;
 
 @Service
 public class EmployeeService {
 
-    private static final long LOAN_PERIOD_DAYS = 14;
-
     private final BookRepository bookRepository;
     private final BorrowRepository borrowRepository;
+    private final UserRepository userRepository;
 
-    public EmployeeService(BookRepository bookRepository, BorrowRepository borrowRepository) {
+    public EmployeeService(BookRepository bookRepository, BorrowRepository borrowRepository, UserRepository userRepository) {
         this.bookRepository = bookRepository;
         this.borrowRepository = borrowRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -71,18 +71,41 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Borrow> getActiveBorrows(Pageable pageable) {
-        return borrowRepository.findByReturnDateIsNull(pageable);
+    public Page<User> getUsers(String query, Pageable pageable) {
+        if (query == null || query.isBlank()) {
+            return userRepository.findAll(pageable);
+        }
+        String term = query.trim();
+        return userRepository.findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(term, term, pageable);
     }
 
-    @Transactional(readOnly = true)
-    public Page<Borrow> getOverdueBorrows(Pageable pageable) {
-        LocalDate cutoffDate = LocalDate.now().minusDays(LOAN_PERIOD_DAYS);
-        return borrowRepository.findByReturnDateIsNullAndBorrowDateBefore(cutoffDate, pageable);
+    public User getUserById(Long userId) {
+        return findUserOrThrow(userId);
+    }
+
+    @Transactional
+    public User updateUserRole(Long userId, UserRole role) {
+        User user = findUserOrThrow(userId);
+        user.setRole(role);
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteUser(Long userId) {
+        User user = findUserOrThrow(userId);
+        if (borrowRepository.existsByUserIdAndReturnDateIsNull(userId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot delete user with active borrows");
+        }
+        userRepository.delete(user);
     }
 
     private Book findBookOrThrow(Long id) {
         return bookRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found"));
+    }
+
+    private User findUserOrThrow(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 }

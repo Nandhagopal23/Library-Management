@@ -23,11 +23,14 @@ import org.springframework.web.server.ResponseStatusException;
 import com.example.library.entity.Borrow;
 import com.example.library.service.LibraryService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 @RestController
 @RequestMapping("/api/library")
+@Tag(name = "User Endpoints", description = "Logged-in user operations: view books, borrow, return, and view borrowed books")
 public class LibraryController {
 
     private final LibraryService libraryService;
@@ -40,6 +43,7 @@ public class LibraryController {
     }
 
     @PostMapping("/borrow")
+    @Operation(summary = "Borrow a book", description = "Borrow a book as the authenticated user")
     public BorrowResponse borrowBook(
             @Valid @RequestBody BorrowBookRequest request,
             Authentication authentication,
@@ -51,18 +55,19 @@ public class LibraryController {
     }
 
     @PostMapping("/return/{borrowId}")
+    @Operation(summary = "Return a borrowed book", description = "Return a book borrowed by the authenticated user")
     public BorrowResponse returnBook(
             @PathVariable Long borrowId,
             Authentication authentication,
             @RequestHeader(value = "X-User-Email", required = false) String fallbackEmail
     ) {
         String requesterEmail = resolveRequesterEmail(authentication, fallbackEmail);
-        boolean isEmployee = hasEmployeeRole(authentication);
-        Borrow borrow = libraryService.returnBook(borrowId, requesterEmail, isEmployee);
+        Borrow borrow = libraryService.returnBook(borrowId, requesterEmail);
         return BorrowResponse.from(borrow);
     }
 
     @GetMapping("/books")
+    @Operation(summary = "View all books", description = "View all books in the library with optional search and pagination")
     public PagedResponse<BookResponse> getBooks(
             Authentication authentication,
             @RequestHeader(value = "X-User-Email", required = false) String fallbackEmail,
@@ -75,13 +80,13 @@ public class LibraryController {
     }
 
     @GetMapping("/borrowed")
+    @Operation(summary = "View my borrowed books", description = "View currently borrowed books for the authenticated user")
     public List<BorrowResponse> getBorrowedBooks(
             Authentication authentication,
             @RequestHeader(value = "X-User-Email", required = false) String fallbackEmail
     ) {
         String requesterEmail = resolveRequesterEmail(authentication, fallbackEmail);
-        boolean isEmployee = hasEmployeeRole(authentication);
-        return libraryService.getBorrowedBooks(requesterEmail, isEmployee).stream()
+        return libraryService.getBorrowedBooks(requesterEmail).stream()
                 .map(BorrowResponse::from)
                 .toList();
     }
@@ -145,13 +150,6 @@ public class LibraryController {
                     page.hasPrevious()
             );
         }
-    }
-
-    private boolean hasEmployeeRole(Authentication authentication) {
-        return authentication != null
-                && authentication.getAuthorities() != null
-                && authentication.getAuthorities().stream()
-                        .anyMatch(authority -> "ROLE_EMPLOYEE".equals(authority.getAuthority()));
     }
 
     private String resolveRequesterEmail(Authentication authentication, String fallbackEmail) {
